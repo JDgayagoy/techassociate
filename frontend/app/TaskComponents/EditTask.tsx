@@ -42,11 +42,14 @@ export default function EditTask({
   const [description, setDescription] = useState(
     initialDescription ?? ""
   )
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   // Update form values when another task is selected
   useEffect(() => {
     setTitle(initialTitle)
     setDescription(initialDescription ?? "")
+    setError('')
   }, [initialTitle, initialDescription])
 
   const handleSubmit = async (
@@ -54,7 +57,14 @@ export default function EditTask({
   ) => {
 
     e.preventDefault()
+    setError('')
 
+    if (!title.trim()) {
+      setError('Title is required')
+      return
+    }
+
+    setLoading(true)
     try {
       const response = await fetch(
         `http://localhost:3000/task/${id}`,
@@ -64,22 +74,24 @@ export default function EditTask({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            title,
+            title: title.trim(),
             description,
           }),
         }
       )
 
       if (!response.ok) {
+        const data = await response.json().catch(() => null)
         throw new Error(
-          `Request failed: ${response.status}`
+          data?.message || `Request failed: ${response.status}`
         )
       }
-      console.log("Task updated successfully")
       onOpenChange(false)
       onEditTask()
     } catch (err) {
-      console.error(err)
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -87,7 +99,7 @@ export default function EditTask({
 
     <Dialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(isOpen) => { onOpenChange(isOpen); if (!isOpen) setError(''); }}
     >
       <DialogContent className="sm:max-w-sm">
         <form onSubmit={handleSubmit}>
@@ -96,6 +108,9 @@ export default function EditTask({
               Edit Task
             </DialogTitle>
           </DialogHeader>
+          {error && (
+            <p className="text-sm text-red-500 px-1">{error}</p>
+          )}
           <FieldGroup>
             <Field>
               <Label htmlFor="task-title">
@@ -104,9 +119,10 @@ export default function EditTask({
               <Input
                 id="task-title"
                 value={title}
-                onChange={(e) =>
+                onChange={(e) => {
                   setTitle(e.target.value)
-                }
+                  if (error) setError('')
+                }}
               />
             </Field>
 
@@ -135,8 +151,8 @@ export default function EditTask({
                 </Button>
               }
             />
-            <Button type="submit">
-              Save changes
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : 'Save changes'}
             </Button>
           </DialogFooter>
         </form>
@@ -144,4 +160,4 @@ export default function EditTask({
     </Dialog>
 
   )
-}
+}

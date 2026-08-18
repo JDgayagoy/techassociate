@@ -23,9 +23,13 @@ export default function DeleteDialog({id, onTaskDeleted}: DeleteDialogProps) {
                 method: "DELETE",
                 headers: {'Content-Type' : 'application/json'},
             })
+            if (!response.ok) {
+                const data = await response.json().catch(() => null)
+                throw new Error(data?.message || `Failed to delete task`)
+            }
             onTaskDeleted();
         }catch(err){
-            console.log(err)
+            alert(err instanceof Error ? err.message : 'Failed to delete task')
         }
     }
 
@@ -38,8 +42,7 @@ export default function DeleteDialog({id, onTaskDeleted}: DeleteDialogProps) {
         <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete your account and remove your
-            data from our servers.
+            This action cannot be undone. This will permanently delete this task.
             </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -49,4 +52,5 @@ export default function DeleteDialog({id, onTaskDeleted}: DeleteDialogProps) {
         </AlertDialogContent>
     </AlertDialog>
     )}
+
 

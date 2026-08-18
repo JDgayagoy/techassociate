@@ -89,17 +89,18 @@ export default function TaskTable({
                         try {
                             const response = await fetch(`http://localhost:3000/task/${item.id}`, {
                                 method: "PATCH",
-                                headers: {"Content-Type" : " application/json"},
+                                headers: {"Content-Type" : "application/json"},
                                 body: JSON.stringify({
                                     completed: checked === true
                                 }),
                             });
                             if(!response.ok){
-                                throw new Error("Failed to update status")
+                                const data = await response.json().catch(() => null)
+                                throw new Error(data?.message || "Failed to update status")
                             }
                             onTaskCreated()
                         }catch(err){
-                            console.error(err)
+                            alert(err instanceof Error ? err.message : 'Failed to update task status')
                         }
                     }}
                   ></Checkbox>

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, BadRequestException } from '@nestjs/common';
 import { TaskService } from './task.service';
 import { TaskModel } from 'generated/prisma/models';
 import { Prisma,Task } from 'generated/prisma/browser';
@@ -13,6 +13,9 @@ export class AppController {
 
   @Get('task')
   async getTask(@Query('status') status?: string){
+    if (status && !['completed', 'pending'].includes(status)) {
+      throw new BadRequestException('Status must be "completed" or "pending"');
+    }
     return this.taskService.getAll(status);
   }
 
@@ -20,7 +23,13 @@ export class AppController {
   async createTask(
     @Body() taskData: { title: string; description?: string }
   ) {
-    return this.taskService.createTask(taskData);
+    if (!taskData.title || taskData.title.trim().length === 0) {
+      throw new BadRequestException('Title is required');
+    }
+    return this.taskService.createTask({
+      ...taskData,
+      title: taskData.title.trim(),
+    });
   }
 
   @Patch('task/:id')
@@ -28,9 +37,19 @@ export class AppController {
     @Param('id') id: string,
     @Body() data: Prisma.TaskUpdateInput,
   ) {
+    const taskId = Number(id);
+    if (isNaN(taskId) || taskId <= 0) {
+      throw new BadRequestException('Invalid task ID');
+    }
+    if (data.title !== undefined) {
+      const titleValue = typeof data.title === 'string' ? data.title : (data.title as any)?.set;
+      if (typeof titleValue === 'string' && titleValue.trim().length === 0) {
+        throw new BadRequestException('Title cannot be empty');
+      }
+    }
     return this.taskService.updateTask({
       where: {
-        id: Number(id),
+        id: taskId,
       },
       data,
     });
@@ -38,8 +57,12 @@ export class AppController {
 
   @Delete('task/:id')
   async deleteTask(@Param('id') id: string) {
+    const taskId = Number(id);
+    if (isNaN(taskId) || taskId <= 0) {
+      throw new BadRequestException('Invalid task ID');
+    }
     return this.taskService.deleteTask({
-      id: Number(id),
+      id: taskId,
     });
   }
 }

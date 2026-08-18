@@ -5,6 +5,7 @@ import TaskTable from "./TaskComponents/TaskTable"
 import { CreateTask } from "./TaskComponents/CreateTask"
 import TaskFilter from "./TaskComponents/TaskFilter"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 type Task = {
   id: number
@@ -18,22 +19,32 @@ export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [status, setStatus] = useState("all")
   const [search, setSearch] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
   async function fetchTask(statusFilter = "all") {
     const url =
       statusFilter === "all"
         ? "http://localhost:3000/task"
         : `http://localhost:3000/task?status=${statusFilter}`
+    setLoading(true)
+    setError("")
     try {
       const response = await fetch(url)
       if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`)
+        const data = await response.json().catch(() => null)
+        throw new Error(data?.message || `Request failed: ${response.status}`)
       }
       const data = await response.json()
-      console.log(data)
       setTasks(data)
     } catch (err) {
-      console.log(err)
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError("Cannot connect to the server. Make sure the backend is running.")
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to load tasks")
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -75,10 +86,23 @@ export default function Home() {
             />
           </div>
         </div>
-        <TaskTable
-          tasks={filteredTasks}
-          onTaskCreated={() => fetchTask(status)}
-        />
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <p className="text-muted-foreground">Loading tasks...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <p className="text-red-500">{error}</p>
+            <Button variant="outline" onClick={() => fetchTask(status)}>
+              Retry
+            </Button>
+          </div>
+        ) : (
+          <TaskTable
+            tasks={filteredTasks}
+            onTaskCreated={() => fetchTask(status)}
+          />
+        )}
       </main>
     </div>
   )
